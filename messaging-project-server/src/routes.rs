@@ -4,10 +4,10 @@ use std::sync::Arc;
 use sqlx::PgPool;
 
 pub fn routes(pool: Arc<PgPool>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-  get_post(pool)
+  get_user(pool)
 }
 
-fn get_post(pool: Arc<PgPool>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+fn get_user(pool: Arc<PgPool>) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
   warp::path!("users" / i32)
     .and(warp::get())
     .and(with_db(pool))
