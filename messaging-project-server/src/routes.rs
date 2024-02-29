@@ -7,6 +7,7 @@ use serde::Deserialize;
 pub fn routes(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
   get_user(pool.clone())
     .or(login(pool.clone()))
+    .or(create_user(pool.clone()))
 }
 
 fn get_user(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -27,7 +28,15 @@ fn login(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejecti
     .and(warp::post())
     .and(warp::body::json::<LoginRequestBody>())
     .and(with_db(pool))
-    .and_then(handlers::login_handler)
+    .and_then(handlers::login)
+}
+
+fn create_user(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+  warp::path!("users")
+    .and(warp::post())
+    .and(warp::body::json::<LoginRequestBody>())
+    .and(with_db(pool))
+    .and_then(handlers::create_user)
 }
 
 fn with_db(pool:Arc<PgPool>) -> impl Filter<Extract = (Arc<PgPool>,), Error = std::convert::Infallible> + Clone {

@@ -1,7 +1,7 @@
 use super::models::User;
 use std::sync::Arc;
 use sqlx::PgPool;
-use warp::{Reply, Rejection, reply, reject, http::{StatusCode, Response}};
+use warp::{Filter, Reply, Rejection, reply, reject, http::{StatusCode, Response}};
 use super::routes;
 use serde_json::json;
 
@@ -35,11 +35,15 @@ impl Reply for LoginResponseBody {
   }
 }
 
-pub async fn login_handler(login_request: routes::LoginRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<LoginResponseBody>, Rejection> {
-  login(login_request.username, login_request.password, pool).await
+pub async fn login(body: routes::LoginRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<LoginResponseBody>, Rejection> {
+  let username: String = body.username;
+  let password: String = body.password;
+  let response_body = LoginResponseBody {token: String::from("Not Implemented")};
+  Ok(reply::with_status(response_body, StatusCode::CREATED))
 }
 
-pub async fn login(username: String, password: String, pool: Arc<PgPool>) -> Result<reply::WithStatus<LoginResponseBody>, Rejection> {
-  let response_body = LoginResponseBody {token: String::from("example_token")};
-  Ok(reply::with_status(response_body, StatusCode::CREATED))
+pub async fn create_user(body: routes::LoginRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<impl Reply>, Rejection> {
+  let username: String = body.username;
+  let password: String = body.password;
+  Ok(reply::with_status("Not implemented", StatusCode::CREATED))
 }
