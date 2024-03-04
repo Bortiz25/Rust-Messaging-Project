@@ -1,0 +1,9 @@
+- get psql through brew or https://www.postgresql.org/download/, you may need to add it to your path
+- open terminal and go to the directory that has this file (sql)
+- type psql postgres to enter the psql terminal
+- type CREATE USER <username>;
+- type \q to leave the psql terminal
+- type psql -U <username> -f create_database.sql to create the database locally
+- type psql rust_messages to check if it worked
+- any time there are updates to create_database.sql and you want to recreate the database,
+  you should remove the database first with psql -U <username> -f remove_database.sql
