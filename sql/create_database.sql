@@ -9,8 +9,13 @@ CREATE TABLE users (
 );
 
 CREATE TABLE chats (
-  chat_id SERIAL PRIMARY KEY NOT NULL,
-  chat_history TEXT DEFAULT ''
+  chat_id SERIAL PRIMARY KEY NOT NULL
+);
+
+CREATE TABLE messages (
+  message_id SERIAL PRIMARY KEY NOT NULL,
+  chat_id INT NOT NULL REFERENCES chats(chat_id),
+  sent_from INT NOT NULL REFERENCES users(user_id)
 );
 
 CREATE TABLE user_to_chat (
