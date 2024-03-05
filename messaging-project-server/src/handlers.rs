@@ -1,9 +1,13 @@
 use super::models::User;
 use std::sync::Arc;
 use sqlx::PgPool;
-use warp::{ Reply, Rejection, reply, reject, http::{StatusCode, Response}};
+use warp::{ http::{Response, StatusCode}, reject, reply::{self, with_status}, Rejection, Reply};
 use super::routes;
 use serde_json::json;
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct EmptyJson {}
 
 
 #[derive(Debug)]
@@ -50,9 +54,28 @@ pub async fn create_user(body: routes::LoginRequestBody, pool: Arc<PgPool>) -> R
   Ok(reply::with_status("Not implemented", StatusCode::CREATED))
 }
 
+#[derive(Serialize)]
 pub struct Chat {
   chat_id: i32
 }
+
+pub async fn get_chats(user_id: i32, pool: Arc<PgPool>) -> Result<reply::WithStatus<reply::Json>, Rejection> {
+  let get_chats_res = sqlx::query_as!( Chat, 
+    "SELECT (c.chat_id)
+    FROM user_to_chat u2c
+    JOIN chats c
+    ON c.chat_id = u2c.chat_id
+    WHERE user_id=$1", user_id
+  ).fetch_all(&*pool).await;
+
+  let chats = match get_chats_res {
+    Ok(c) => c,
+    Err(_) => return Err(reject::custom(DatabaseError))
+  };
+  
+  Ok(reply::with_status(reply::json(&chats), StatusCode::OK))
+}
+
 
 pub async fn create_chat(user_id: i32, body: routes::CreateChatRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<impl Reply>, Rejection> {
   let buddy_id = body.buddy_id;
@@ -64,7 +87,7 @@ pub async fn create_chat(user_id: i32, body: routes::CreateChatRequestBody, pool
 
   let user = match get_user_res {
     Ok(u) => u,
-    Err(_) => return Err(reject::custom(DatabaseError))
+    Err(_) => return Ok(reply::with_status("NOT_FOUND", StatusCode::NOT_FOUND))
   };
 
   let get_buddy_res = sqlx::query_as!( User, 
@@ -73,7 +96,7 @@ pub async fn create_chat(user_id: i32, body: routes::CreateChatRequestBody, pool
 
   let buddy = match get_buddy_res {
     Ok(u) => u,
-    Err(_) => return Err(reject::custom(DatabaseError))
+    Err(_) => return Ok(reply::with_status("NOT_FOUND", StatusCode::NOT_FOUND))
   };
 
   // check if chat already exists -- checks that there the two users have one shared chat, which won't work if we ever implement group chats
@@ -89,7 +112,7 @@ pub async fn create_chat(user_id: i32, body: routes::CreateChatRequestBody, pool
    };
 
    if existing_chat_count > 0 {
-    return Ok(reply::with_status("Already Exists", StatusCode::OK));
+    return Ok(reply::with_status("Already Exists", StatusCode::CONFLICT));
    };
 
   
@@ -112,4 +135,52 @@ pub async fn create_chat(user_id: i32, body: routes::CreateChatRequestBody, pool
   };
 
   Ok(reply::with_status("Created", StatusCode::CREATED))
+}
+
+pub async fn create_message(chat_id: i32, user_id: i32, body: routes::CreateMessageRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<impl Reply>, Rejection> {
+  let message = body.message;
+  let chat_exists_res = sqlx::query!("SELECT EXISTS(SELECT (chat_id) FROM chats WHERE chat_id=$1) as exists", chat_id).fetch_one(&*pool).await;
+  let exists = match chat_exists_res {
+    Ok(res) => res.exists.unwrap_or(false),
+    Err(_) => return Err(reject::custom(DatabaseError))
+  };
+  if !exists {
+    return Ok(reply::with_status("NOT_FOUND", StatusCode::NOT_FOUND))
+  }
+
+  let create_res = sqlx::query!(
+    "INSERT INTO messages (chat_id, sent_from, message) VALUES ($1, $2, $3)", 
+    chat_id, user_id, message
+  ).execute(&*pool).await;
+  if let Err(e) = create_res {
+    println!("{}", e);
+    return Err(reject::custom(DatabaseError));
+  }
+  Ok(reply::with_status("Created", StatusCode::CREATED))
+}
+#[derive(Serialize)]
+pub struct Message {
+  message_id: i32,
+  chat_id: i32,
+  sent_from: i32,
+  message: String
+}
+
+pub async fn get_messages(chat_id: i32, _user_id: i32, pool: Arc<PgPool>) -> Result<reply::WithStatus<reply::Json>, Rejection> {
+  let chat_exists_res = sqlx::query!("SELECT EXISTS(SELECT (chat_id) FROM chats WHERE chat_id=$1) as exists", chat_id).fetch_one(&*pool).await;
+  let exists = match chat_exists_res {
+    Ok(res) => res.exists.unwrap_or(false),
+    Err(_) => return Err(reject::custom(DatabaseError))
+  };
+  if !exists {
+    return Ok(reply::with_status(reply::json(&EmptyJson{}), StatusCode::NOT_FOUND))
+  }
+
+  let messages_res = sqlx::query_as!(Message, "SELECT * FROM messages WHERE chat_id = $1", chat_id).fetch_all(&*pool).await;
+  let messages = match messages_res {
+    Ok(m) => m,
+    Err(_) => return Err(reject::custom(DatabaseError))
+  };
+
+  Ok(with_status(reply::json(&messages), StatusCode::OK))
 }

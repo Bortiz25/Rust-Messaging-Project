@@ -9,6 +9,9 @@ pub fn routes(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Re
     .or(login(pool.clone()))
     .or(create_user(pool.clone()))
     .or(create_chat(pool.clone()))
+    .or(create_message(pool.clone()))
+    .or(get_chats(pool.clone()))
+    .or(get_messages(pool.clone()))
 }
 
 fn get_user(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -52,6 +55,36 @@ fn create_chat(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = R
     .and(warp::body::json::<CreateChatRequestBody>())
     .and(with_db(pool))
     .and_then(handlers::create_chat)
+}
+
+#[derive(Deserialize)]
+pub struct CreateMessageRequestBody {
+  pub message: String
+}
+
+fn create_message(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+  warp::path!("chats" / i32)
+    .and(warp::post())
+    .and(with_auth())
+    .and(warp::body::json::<CreateMessageRequestBody>())
+    .and(with_db(pool))
+    .and_then(handlers::create_message)
+}
+
+fn get_chats(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+  warp::path!("chats")
+    .and(warp::get())
+    .and(with_auth())
+    .and(with_db(pool))
+    .and_then(handlers::get_chats)
+}
+
+fn get_messages(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+  warp::path!("chats" / i32 / "messages")
+    .and(warp::get())
+    .and(with_auth())
+    .and(with_db(pool))
+    .and_then(handlers::get_messages)
 }
 
 fn with_db(pool:Arc<PgPool>) -> impl Filter<Extract = (Arc<PgPool>,), Error = std::convert::Infallible> + Clone {
