@@ -1,4 +1,59 @@
 use std::fmt;
+use reqwest;
+use serde::Deserialize;
+
+pub struct UserCommand {
+    pub command: String,
+    pub username: u32,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct User {
+    pub user_id: u32,
+    pub username: String,
+    pub password: String,
+}
+
+impl UserCommand {
+    pub async fn build(args: Vec<&str>) -> Result<UserCommand, &'static str> {
+        if args.len() < 2 {
+            return Err("not enough arguments");
+        }
+        if args.len() > 2 {
+            return Err("too many arguments");
+        }
+        let command: String = args[0].to_string();
+        let username: u32 = args[1].to_string().parse::<u32>().unwrap();
+
+        let user: UserCommand;
+        user = UserCommand { command, username };
+        let url = format!("http://localhost:8001/users/{}", user.username);
+
+        let get_res = reqwest::get(url).await;
+
+        let final_result = match get_res {
+            Ok(r) => r.json::<User>().await,
+            Err(_) => {
+                return Err("Error: fetching request");
+            }
+        };
+
+        let final_result_result = match final_result {
+            Ok(r) => r,
+            Err(_) => {
+                return Err("Error: fetching request");
+            }
+        };
+        println!("{:?}", final_result_result);
+        Ok(user)
+    }
+}
+
+impl fmt::Debug for UserCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.command, self.username)
+    }
+}
 
 pub struct MessageCommand {
     pub command: String,
@@ -32,7 +87,7 @@ impl fmt::Debug for MessageCommand {
 
 pub struct ChatCommand {
     pub command: String,
-    pub user: String,
+    pub user: u32,
     pub depth: u32,
 }
 
@@ -45,7 +100,7 @@ impl ChatCommand {
             return Err("too many arguments");
         }
         let command: String = args[0].to_string();
-        let user: String = args[1].to_string();
+        let user: u32 = args[1].to_string().parse::<u32>().unwrap();
         let depth: u32 = args[2].to_string().parse::<u32>().unwrap();
 
         Ok(ChatCommand { command, user, depth })
