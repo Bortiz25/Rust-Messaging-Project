@@ -65,7 +65,7 @@ pub struct CreateMessageRequestBody {
 fn create_message(
     pool: Arc<PgPool>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::path!("chats" / i32)
+    warp::path!("chats" / String)
         .and(warp::post())
         .and(with_auth())
         .and(warp::body::json::<CreateMessageRequestBody>())
