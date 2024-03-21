@@ -12,7 +12,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:8001/users/13",
+					"raw": "http://localhost:8001/users/1",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -20,7 +20,7 @@
 					"port": "8001",
 					"path": [
 						"users",
-						"13"
+						"1"
 					]
 				}
 			},
@@ -62,7 +62,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"buddy_id\": 2\n}",
+					"raw": "{\n    \"buddy_id\": \"other_guy2\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -120,7 +120,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"message\": \"hello!\"\n}",
+					"raw": "{\n    \"message\": \"new message!\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -128,7 +128,7 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8001/chats/1/",
+					"raw": "http://localhost:8001/chats/other_guy/",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -136,7 +136,7 @@
 					"port": "8001",
 					"path": [
 						"chats",
-						"1",
+						"other_guy",
 						""
 					]
 				}
@@ -168,7 +168,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:8001/chats/1/messages",
+					"raw": "http://localhost:8001/chats/other_guy/messages",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -176,7 +176,7 @@
 					"port": "8001",
 					"path": [
 						"chats",
-						"1",
+						"other_guy",
 						"messages"
 					]
 				}
