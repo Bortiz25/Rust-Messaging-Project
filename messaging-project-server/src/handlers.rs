@@ -1,5 +1,5 @@
 use super::models::User;
-use std::sync::Arc;
+use std::{os::macos::raw::stat, sync::Arc};
 use sqlx::PgPool;
 use warp::{ http::{Response, StatusCode}, reject, reply::{self, with_status}, Rejection, Reply};
 use super::routes;
@@ -60,7 +60,7 @@ pub struct Chat {
 }
 
 pub async fn get_chats(user_id: i32, pool: Arc<PgPool>) -> Result<reply::WithStatus<reply::Json>, Rejection> {
-  let get_chats_res = sqlx::query_as!( Chat, 
+  let get_chats_res = sqlx::query_as!( Chat,
     "SELECT (c.chat_id)
     FROM user_to_chat u2c
     JOIN chats c
@@ -91,7 +91,7 @@ pub async fn create_chat(user_id: i32, body: routes::CreateChatRequestBody, pool
   };
 
   let get_buddy_res = sqlx::query_as!( User, 
-    "SELECT * FROM users WHERE user_id = $1", buddy_id
+    "SELECT * FROM users WHERE username = $1", buddy_id
   ).fetch_one(&*pool).await;
 
   let buddy = match get_buddy_res {
@@ -137,16 +137,51 @@ pub async fn create_chat(user_id: i32, body: routes::CreateChatRequestBody, pool
   Ok(reply::with_status("Created", StatusCode::CREATED))
 }
 
-pub async fn create_message(chat_id: i32, user_id: i32, body: routes::CreateMessageRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<impl Reply>, Rejection> {
+pub async fn create_message(buddy_username: String, user_id: i32, body: routes::CreateMessageRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<impl Reply>, Rejection> {
   let message = body.message;
-  let chat_exists_res = sqlx::query!("SELECT EXISTS(SELECT (chat_id) FROM chats WHERE chat_id=$1) as exists", chat_id).fetch_one(&*pool).await;
-  let exists = match chat_exists_res {
-    Ok(res) => res.exists.unwrap_or(false),
+
+  let buddy_id_res = sqlx::query!("SELECT (user_id) FROM users WHERE username=$1", buddy_username).fetch_optional(&*pool).await;
+  let buddy_id: i32 = match buddy_id_res {
+    Ok(ores) => match ores {
+      Some(id) => id.user_id,
+      None => return Ok(reply::with_status(reply::json(&EmptyJson{}), StatusCode::NOT_FOUND))
+    },
     Err(_) => return Err(reject::custom(DatabaseError))
   };
-  if !exists {
-    return Ok(reply::with_status("NOT_FOUND", StatusCode::NOT_FOUND))
-  }
+
+  let chat_id_res = sqlx::query_as!(Chat, "SELECT (c.chat_id) 
+                                          FROM chats c 
+                                          JOIN user_to_chat uc1
+                                            ON c.chat_id = uc1.chat_id AND uc1.user_id=$1
+                                          JOIN user_to_chat uc2
+                                            ON c.chat_id = uc2.chat_id AND uc2.user_id=$2", user_id, buddy_id
+                                    ).fetch_optional(&*pool).await;
+  let chat_id = match chat_id_res {
+    Ok(ores) => match ores {
+      Some(id) => id.chat_id,
+      None => {
+        // create new chat and return it's id
+        let chat_create_res = sqlx::query_as!(Chat, "INSERT INTO chats DEFAULT VALUES RETURNING chat_id").fetch_one(&*pool).await;
+        let c_id = match chat_create_res {
+          Ok(res) => res.chat_id,
+          Err(_) => return Err(reject::custom(DatabaseError))
+        };
+
+        // connect users to new chat
+        let user_connection_res = sqlx::query!("INSERT INTO user_to_chat (user_id, chat_id) VALUES ($1, $2)", user_id, c_id).execute(&*pool).await;
+        if let Err(_) = user_connection_res {
+          return Err(reject::custom(DatabaseError));
+        };
+
+        let buddy_connection_res = sqlx::query!("INSERT INTO user_to_chat (user_id, chat_id) VALUES ($1, $2)", buddy_id, c_id).execute(&*pool).await;
+        if let Err(_) = buddy_connection_res {
+          return Err(reject::custom(DatabaseError));
+        };
+        c_id
+      }
+    },
+    Err(_) => return Err(reject::custom(DatabaseError))
+  };
 
   let create_res = sqlx::query!(
     "INSERT INTO messages (chat_id, sent_from, message) VALUES ($1, $2, $3)", 
@@ -156,7 +191,7 @@ pub async fn create_message(chat_id: i32, user_id: i32, body: routes::CreateMess
     println!("{}", e);
     return Err(reject::custom(DatabaseError));
   }
-  Ok(reply::with_status("Created", StatusCode::CREATED))
+  Ok(reply::with_status(reply::json(&EmptyJson{}), StatusCode::CREATED))
 }
 #[derive(Serialize)]
 pub struct Message {
@@ -166,15 +201,32 @@ pub struct Message {
   message: String
 }
 
-pub async fn get_messages(chat_id: i32, _user_id: i32, pool: Arc<PgPool>) -> Result<reply::WithStatus<reply::Json>, Rejection> {
-  let chat_exists_res = sqlx::query!("SELECT EXISTS(SELECT (chat_id) FROM chats WHERE chat_id=$1) as exists", chat_id).fetch_one(&*pool).await;
-  let exists = match chat_exists_res {
-    Ok(res) => res.exists.unwrap_or(false),
+pub async fn get_messages(buddy_username: String, user_id: i32, pool: Arc<PgPool>) -> Result<reply::WithStatus<reply::Json>, Rejection> {
+  let buddy_id_res = sqlx::query!("SELECT (user_id) FROM users WHERE username=$1", buddy_username).fetch_optional(&*pool).await;
+  let buddy_id: i32 = match buddy_id_res {
+    Ok(ores) => match ores {
+      Some(id) => id.user_id,
+      None => return Ok(reply::with_status(reply::json(&EmptyJson{}), StatusCode::NOT_FOUND))
+    },
     Err(_) => return Err(reject::custom(DatabaseError))
   };
-  if !exists {
-    return Ok(reply::with_status(reply::json(&EmptyJson{}), StatusCode::NOT_FOUND))
-  }
+
+  let chat_id_res = sqlx::query_as!(Chat, 
+                              "SELECT (c.chat_id) 
+                              FROM chats c 
+                              JOIN user_to_chat uc1
+                                ON c.chat_id = uc1.chat_id AND uc1.user_id=$1
+                              JOIN user_to_chat uc2
+                                ON c.chat_id = uc2.chat_id AND uc2.user_id=$2
+                              ", user_id, buddy_id
+                            ).fetch_optional(&*pool).await;
+  let chat_id = match chat_id_res {
+    Ok(ores) => match ores {
+      Some(id) => id.chat_id,
+      None => return Ok(reply::with_status(reply::json(&EmptyJson{}), StatusCode::NOT_FOUND))
+    },
+    Err(_) => return Err(reject::custom(DatabaseError))
+  };
 
   let messages_res = sqlx::query_as!(Message, "SELECT * FROM messages WHERE chat_id = $1", chat_id).fetch_all(&*pool).await;
   let messages = match messages_res {
