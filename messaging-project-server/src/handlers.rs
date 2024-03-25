@@ -1,7 +1,7 @@
 use crate::auth::authorize;
 
 use super::models::User;
-use std::{io::Empty, sync::Arc};
+use std::sync::Arc;
 use sqlx::PgPool;
 use warp::{ http::{Response, StatusCode, HeaderMap, HeaderValue}, reject, reply::{self, with_status}, Rejection, Reply};
 use super::routes;
