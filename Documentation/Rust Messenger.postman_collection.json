@@ -9,18 +9,27 @@
 		{
 			"name": "Get User",
 			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpZCI6IjEifQ.GnEv8Px5PO0KdWse-HEkZQGH8sO8fiEF5SOMPR16LDD2jFDvi_y7VfTzN31xeOgr_KucKq78VUjjBaeHGznVAA",
+							"type": "string"
+						}
+					]
+				},
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:8001/users/1",
+					"raw": "http://localhost:8001/users",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8001",
 					"path": [
-						"users",
-						"1"
+						"users"
 					]
 				}
 			},
@@ -91,7 +100,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"username\": \"lmartin9\",\n    \"password\": \"password\"\n}",
+					"raw": "{\n    \"username\": \"lmartin10\",\n    \"password\": \"password\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -178,6 +187,36 @@
 						"chats",
 						"other_guy",
 						"messages"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Given Token",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpZCI6IjEiLCJleHAiOjE3NDI4NTQ1NDl9.1Ff_EznguJRKp4n5FhwcdXtX3GQ82XGleBfrAo6RBskBmWaYR-iZTNu9iHgYAIuxqZ74ARTpvRpcixSAQeFvYw",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8001/users/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8001",
+					"path": [
+						"users",
+						""
 					]
 				}
 			},
