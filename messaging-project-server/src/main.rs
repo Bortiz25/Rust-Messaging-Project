@@ -1,6 +1,7 @@
 mod routes;
 mod handlers;
 mod models;
+mod auth;
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use warp::Filter;

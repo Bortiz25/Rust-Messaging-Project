@@ -1,10 +1,13 @@
+use crate::auth::authorize;
+
 use super::models::User;
-use std::{os::macos::raw::stat, sync::Arc};
+use std::{io::Empty, sync::Arc};
 use sqlx::PgPool;
-use warp::{ http::{Response, StatusCode}, reject, reply::{self, with_status}, Rejection, Reply};
+use warp::{ http::{Response, StatusCode, HeaderMap, HeaderValue}, reject, reply::{self, with_status}, Rejection, Reply};
 use super::routes;
 use serde_json::json;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use super::auth::create_jwt;
 
 #[derive(Serialize)]
 struct EmptyJson {}
@@ -13,6 +16,10 @@ struct EmptyJson {}
 #[derive(Debug)]
 struct DatabaseError;
 impl reject::Reject for DatabaseError {}
+
+#[derive(Debug)]
+struct JwtError;
+impl reject::Reject for JwtError {}
 
 pub async fn get_user(user_id: i32, pool: Arc<PgPool>) -> Result<impl Reply, Rejection> {
   let user_result = sqlx::query_as!( User, 
@@ -24,7 +31,7 @@ pub async fn get_user(user_id: i32, pool: Arc<PgPool>) -> Result<impl Reply, Rej
   }
 }
 
-
+#[derive(Serialize)]
 pub struct LoginResponseBody {
   token: String,
 }
@@ -41,17 +48,46 @@ impl Reply for LoginResponseBody {
   }
 }
 
-pub async fn login(body: routes::LoginRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<LoginResponseBody>, Rejection> {
+pub async fn login(body: routes::LoginRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<reply::Json>, Rejection> {
   let username: String = body.username;
   let password: String = body.password;
-  let response_body = LoginResponseBody {token: String::from("Not Implemented")};
-  Ok(reply::with_status(response_body, StatusCode::CREATED))
+  let get_user_res = sqlx::query_as!(User, "SELECT * FROM users WHERE username=$1 AND password=$2", username, password).fetch_optional(&*pool).await;
+  let user_id = match get_user_res {
+    Ok(ouser) => match ouser {
+      Some(user) => user.user_id,
+      None => return Ok(reply::with_status(reply::json(&EmptyJson{}), StatusCode::NOT_FOUND)) 
+    },
+    Err(_) => return Err(reject::custom(DatabaseError))
+  };
+
+  let otoken = create_jwt(user_id);
+  let token = match otoken {
+    Ok(token) => token,
+    Err(_) => return Err(reject::custom(JwtError))
+  };
+
+  let response_body = LoginResponseBody {token: String::from(token)};
+  Ok(reply::with_status(reply::json(&response_body), StatusCode::CREATED))
 }
 
 pub async fn create_user(body: routes::LoginRequestBody, pool: Arc<PgPool>) -> Result<reply::WithStatus<impl Reply>, Rejection> {
   let username: String = body.username;
   let password: String = body.password;
-  Ok(reply::with_status("Not implemented", StatusCode::CREATED))
+  let username_exists_res = sqlx::query!("SELECT EXISTS(SELECT 1 FROM users WHERE username=$1) AS exists", username).fetch_one(&*pool).await;
+  let username_exists = match username_exists_res {
+    Ok(exists) => exists.exists.unwrap_or(false),
+    Err(_) => return Err(reject::custom(DatabaseError))
+  };
+  if username_exists {
+    return Ok(reply::with_status("Already Exists", StatusCode::CONFLICT))
+  };
+
+  let insert_res = sqlx::query!("INSERT INTO users (username, password) VALUES ($1, $2)", username, password).execute(&*pool).await;
+  if let Err(_) = insert_res {
+    return Err(reject::custom(DatabaseError));
+  };
+
+  Ok(reply::with_status("Created", StatusCode::CREATED))
 }
 
 #[derive(Serialize)]
@@ -235,4 +271,36 @@ pub async fn get_messages(buddy_username: String, user_id: i32, pool: Arc<PgPool
   };
 
   Ok(with_status(reply::json(&messages), StatusCode::OK))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UserResponse {
+  user_id: i32,
+  username: String
+}
+
+pub async fn get_user_with_token(headers: HeaderMap<HeaderValue>, pool: Arc<PgPool>) -> Result<reply::WithStatus<reply::Json>, Rejection> {
+  let user_id_res = authorize(headers);
+  let user_id = match user_id_res {
+    Ok(suid) => {
+      let ouid = suid.parse::<i32>();
+      match ouid {
+        Ok(uid) => uid,
+        Err(_) => return Err(reject::custom(JwtError))
+      }
+    },
+    Err(_) => return Err(reject::custom(JwtError))
+  };
+  println!("{}", user_id);
+  let get_user_res = sqlx::query_as!(User, "SELECT * FROM users WHERE user_id=$1", user_id).fetch_optional(&*pool).await;
+  let user = match get_user_res {
+    Ok(ouser) => match ouser {
+      Some(user) => UserResponse{ user_id: user.user_id, username: user.username },
+      None => return Ok(reply::with_status(reply::json(&EmptyJson{}), StatusCode::NOT_FOUND))
+    }
+    Err(_) => return Err(reject::custom(DatabaseError))
+  };
+
+
+  Ok(with_status(reply::json(&user), StatusCode::OK))
 }

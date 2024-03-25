@@ -12,6 +12,7 @@ pub fn routes(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Re
         .or(create_message(pool.clone()))
         .or(get_chats(pool.clone()))
         .or(get_messages(pool.clone()))
+        .or(get_user_with_token(pool.clone()))
 }
 
 fn get_user(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -87,6 +88,16 @@ fn get_messages(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = 
         .and(with_auth())
         .and(with_db(pool))
         .and_then(handlers::get_messages)
+}
+
+fn get_user_with_token(
+    pool: Arc<PgPool>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path!("users")
+        .and(warp::get())
+        .and(warp::header::headers_cloned())
+        .and(with_db(pool))
+        .and_then(handlers::get_user_with_token)
 }
 
 fn with_db(
