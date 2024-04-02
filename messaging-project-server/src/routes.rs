@@ -1,8 +1,18 @@
-use crate::handlers;
-use serde::Deserialize;
+use crate::{auth::authorize, handlers::{self}, models::User};
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::sync::Arc;
-use warp::{Filter, Rejection, Reply};
+use warp::{http::{header::{HeaderMap, HeaderValue}, StatusCode}, reject, reply::{self, with_status}, Filter, Rejection, Reply};
+
+#[derive(Debug)]
+struct JwtError;
+impl reject::Reject for JwtError {}
+
+#[derive(Serialize, Deserialize)]
+pub struct UserResponse {
+  user_id: i32,
+  username: String
+}
 
 pub fn routes(pool: Arc<PgPool>) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     get_user(pool.clone())
@@ -106,7 +116,28 @@ fn with_db(
     warp::any().map(move || pool.clone())
 }
 
-fn with_auth() -> impl Filter<Extract = (i32,), Error = std::convert::Infallible> + Clone {
-    let user_id = 1;
+async fn with_auth(
+    pool: Arc<PgPool>, headers: &HeaderMap<HeaderValue>
+) -> impl Filter<Extract = (i32,), Error = std::convert::Infallible> + Clone {
+    let user_id_res = authorize(headers.clone());
+    let user_id = match user_id_res {
+      Ok(suid) => {
+        let ouid = suid.parse::<i32>();
+        match ouid {
+          Ok(uid) => uid,
+          Err(_) => panic!()
+        }
+      },
+      Err(_) => panic!()
+    };
+    println!("{}", user_id);
+    let get_user_res = sqlx::query_as!(User, "SELECT * FROM users WHERE user_id=$1", user_id).fetch_optional(&*pool).await;
+    let user = match get_user_res {
+      Ok(ouser) => match ouser {
+        Some(user) => UserResponse{ user_id: user.user_id, username: user.username },
+        None => panic!("Ok(reply::with_status(reply::json(&EmptyJson'{{''}}'), StatusCode::NOT_FOUND))")
+      }
+      Err(_) => panic!("Err(reject::custom(DatabaseError))")
+    };
     warp::any().map(move || user_id)
 }
