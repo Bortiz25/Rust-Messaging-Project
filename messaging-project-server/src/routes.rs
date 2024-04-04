@@ -116,28 +116,19 @@ fn with_db(
     warp::any().map(move || pool.clone())
 }
 
-async fn with_auth(
-    pool: Arc<PgPool>, headers: &HeaderMap<HeaderValue>
+fn with_auth(
 ) -> impl Filter<Extract = (i32,), Error = std::convert::Infallible> + Clone {
-    let user_id_res = authorize(headers.clone());
-    let user_id = match user_id_res {
-      Ok(suid) => {
-        let ouid = suid.parse::<i32>();
-        match ouid {
-          Ok(uid) => uid,
-          Err(_) => panic!()
-        }
-      },
-      Err(_) => panic!()
-    };
-    println!("{}", user_id);
-    let get_user_res = sqlx::query_as!(User, "SELECT * FROM users WHERE user_id=$1", user_id).fetch_optional(&*pool).await;
-    let user = match get_user_res {
-      Ok(ouser) => match ouser {
-        Some(user) => UserResponse{ user_id: user.user_id, username: user.username },
-        None => panic!("Ok(reply::with_status(reply::json(&EmptyJson'{{''}}'), StatusCode::NOT_FOUND))")
-      }
-      Err(_) => panic!("Err(reject::custom(DatabaseError))")
-    };
-    warp::any().map(move || user_id)
+    warp::header::headers_cloned().map(move |headers: HeaderMap| {
+        let user_id_res = authorize(headers);
+        match user_id_res {
+            Ok(suid) => {
+              let ouid = suid.parse::<i32>();
+              match ouid {
+                Ok(uid) => uid,
+                Err(_) => -1
+              }
+            },
+            Err(_) => -1
+          }
+    })
 }
