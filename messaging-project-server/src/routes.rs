@@ -1,8 +1,8 @@
-use crate::{auth::authorize, handlers::{self}, models::User};
+use crate::{auth::authorize, handlers::{self}};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::sync::Arc;
-use warp::{http::{header::{HeaderMap, HeaderValue}, StatusCode}, reject, reply::{self, with_status}, Filter, Rejection, Reply};
+use warp::{http::header::HeaderMap, reject, Filter, Rejection, Reply};
 
 #[derive(Debug)]
 struct JwtError;
