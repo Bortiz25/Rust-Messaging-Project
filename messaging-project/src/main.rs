@@ -26,10 +26,7 @@ fn main() {
         });
         println!("Successful constructed, {:?}", config);
     } else if &args[0] == &"chat" {
-        let config = ChatCommand::build(args).unwrap_or_else(|err| {
-            println!("Problem parsing arguments: {err}");
-            process::exit(1);
-        });
+        let config = rt.block_on(ChatCommand::build(args)).unwrap();
         println!("Successful constructed, {:?}", config)
     } else if &args[0] == &"user" {
         let config = rt.block_on(UserCommand::build(args)).unwrap();

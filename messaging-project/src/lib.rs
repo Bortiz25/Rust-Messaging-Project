@@ -1,6 +1,40 @@
-use std::fmt;
-use reqwest;
+use std::fmt::{ self, format };
+use std::collections::HashMap;
+use reqwest::{ Client, Response, Error };
 use serde::Deserialize;
+
+async fn message_post_helper(username: &str, message: &str) -> Result<Response, &'static str> {
+    let url: String = format!("http://localhost:8001/chats/{}/", username);
+    let mut map = HashMap::new();
+    map.insert("message", message);
+
+    let client = reqwest::Client::new();
+    let res = client.post(url).json(&map).send().await;
+    let final_res = match res {
+        Ok(r) => r,
+        Err(_) => {
+            return Err("Error: posting request");
+        }
+    };
+    Ok(final_res)
+}
+
+//TODO: Fix type issues
+async fn message_get_helper(username: &str) -> Result<Message, Error> {
+    let url: String = format!("http://localhost:8001/chats/{}/messages", username);
+    let get_res = reqwest::get(&url).await?;
+
+    let final_result = get_res.json::<Message>().await?;
+    Ok(final_result)
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Message {
+    pub message_id: u32,
+    pub chat_id: u32,
+    pub sent_from: u32,
+    pub message: String,
+}
 
 pub struct UserCommand {
     pub command: String,
@@ -73,7 +107,10 @@ impl MessageCommand {
         let user: String = args[1].to_string();
         let message: String = args[3].to_string();
 
-        Ok(MessageCommand { command, user, message })
+        let mes = MessageCommand { command, user, message };
+
+        message_post_helper(&mes.user, &mes.message);
+        return Ok(mes);
     }
 
     pub fn send() {}
@@ -87,12 +124,13 @@ impl fmt::Debug for MessageCommand {
 
 pub struct ChatCommand {
     pub command: String,
-    pub user: u32,
+    pub user: String,
     pub depth: u32,
 }
 
+//TODO: fix this issue
 impl ChatCommand {
-    pub fn build(args: Vec<&str>) -> Result<ChatCommand, &'static str> {
+    pub async fn build(args: Vec<&str>) -> Result<ChatCommand, &'static str> {
         if args.len() < 3 {
             return Err("not enough arguments");
         }
@@ -100,10 +138,19 @@ impl ChatCommand {
             return Err("too many arguments");
         }
         let command: String = args[0].to_string();
-        let user: u32 = args[1].to_string().parse::<u32>().unwrap();
+        let user: String = args[1].to_string();
         let depth: u32 = args[2].to_string().parse::<u32>().unwrap();
 
-        Ok(ChatCommand { command, user, depth })
+        let chat = ChatCommand { command, user, depth };
+        let mes = message_get_helper(&chat.user).await;
+        let result: Result<Message, &str> = match mes {
+            Ok(r) => Ok(r),
+            Err(_) => {
+                return Err("Error: fetching request");
+            }
+        };
+        println!("{:?}", result);
+        return Ok(chat);
     }
 }
 
