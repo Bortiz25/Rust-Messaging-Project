@@ -1,5 +1,6 @@
 use std::fmt::{ self, format };
 use std::collections::HashMap;
+use std::future::Future;
 use reqwest::{ Client, Response, Error };
 use serde::Deserialize;
 
@@ -26,6 +27,30 @@ async fn message_get_helper(username: &str) -> Result<Message, Error> {
 
     let final_result = get_res.json::<Message>().await?;
     Ok(final_result)
+}
+
+#[derive(Deserialize, Debug)]
+struct Token {
+    pub token: String,
+}
+
+async fn login_post_helper(username: &str, password: &str) -> Result<Response, &'static str> {
+    let url: String = format!("http://localhost:8001/login/");
+    let mut map = HashMap::new();
+    map.insert("username", username);
+    map.insert("password", password);
+
+    let client = reqwest::Client::new();
+    let res = client.post(url).json(&map).send().await;
+
+    let final_res = match res {
+        Ok(r) => r,
+        Err(_) => {
+            return Err("Error: posting request");
+        }
+    };
+    println!("{:?}", &final_res);
+    Ok(final_res)
 }
 
 #[derive(Deserialize, Debug)]
@@ -211,3 +236,43 @@ impl fmt::Debug for ListCommand {
         write!(f, "{} {}", self.command, self.depth)
     }
 }
+
+#[derive(Deserialize, Debug)]
+pub struct LoginCommand {
+    pub command_user: String,
+}
+
+impl LoginCommand {
+    pub async fn build(args: Vec<&str>) -> Result<String, &'static str> {
+        if args.len() < 4 {
+            return Err("not enough arguments");
+        }
+        if args.len() > 4 {
+            return Err("too many arguments");
+        }
+        let command_user: String = args[0].to_string();
+        let username: String = args[1].to_string();
+        let command_pass: String = args[2].to_string();
+        let password: String = args[3].to_string();
+
+        let val = login_post_helper(&username, &password).await?.text().await;
+        let fin = match val {
+            Ok(v) => v,
+            Err(_) => {
+                return Err("Login Failed");
+            }
+        };
+        let mut tok: Vec<&str> = fin.split("{").collect();
+        let tok_step: Vec<&str> = tok[1].split("\"").collect();
+        //let final_tok: Vec<&str> = tok_step[].split(":").collect();
+        let final_final: String = tok_step[3].to_string();
+        Ok(final_final)
+        //Ok(LoginCommand { command_user })
+    }
+}
+
+// impl fmt::Debug for ListCommand {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(f, "{} {}", self.command, self.depth)
+//     }
+// }

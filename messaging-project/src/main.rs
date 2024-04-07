@@ -3,7 +3,14 @@ use std::process;
 use std::io;
 use tokio::runtime;
 
-use messaging_project::{ ChatCommand, DeleteCommand, ListCommand, MessageCommand, UserCommand };
+use messaging_project::{
+    ChatCommand,
+    DeleteCommand,
+    ListCommand,
+    MessageCommand,
+    UserCommand,
+    LoginCommand,
+};
 
 fn main() {
     let mut buf = String::new();
@@ -42,6 +49,13 @@ fn main() {
             println!("Problem parsing arguments: {err}");
             process::exit(1);
         });
+        println!("Successful constructed, {:?}", config)
+    } else if &args[0] == &"username" {
+        // let config = LoginCommand::build(args).unwrap_or_else(|err| {
+        //     println!("Problem parsing arguments: {err}");
+        //     process::exit(1);
+        // });
+        let config = rt.block_on(LoginCommand::build(args)).unwrap();
         println!("Successful constructed, {:?}", config)
     }
 }
