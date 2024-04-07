@@ -1,6 +1,7 @@
 //use std::fmt::Error;
 use std::process;
 use std::io;
+use messaging_project::CreateUserCommand;
 use tokio::runtime;
 
 use messaging_project::{
@@ -56,6 +57,9 @@ fn main() {
         //     process::exit(1);
         // });
         let config = rt.block_on(LoginCommand::build(args)).unwrap();
+        println!("Successful constructed, {:?}", config)
+    } else if &args[0] == &"createuser" {
+        let config = rt.block_on(CreateUserCommand::build(args)).unwrap();
         println!("Successful constructed, {:?}", config)
     }
 }

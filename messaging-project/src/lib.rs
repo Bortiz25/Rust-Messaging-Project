@@ -1,7 +1,7 @@
 use std::fmt::{ self, format };
 use std::collections::HashMap;
 use std::future::Future;
-use reqwest::{ Client, Response, Error };
+use reqwest::{ Client, Error, Response, StatusCode };
 use serde::Deserialize;
 
 async fn message_post_helper(username: &str, message: &str) -> Result<Response, &'static str> {
@@ -27,6 +27,24 @@ async fn message_get_helper(username: &str) -> Result<Message, Error> {
 
     let final_result = get_res.json::<Message>().await?;
     Ok(final_result)
+}
+
+async fn user_post_helper(username: &str, password: &str) -> Result<StatusCode, &'static str> {
+    let url: String = format!("http://localhost:8001/users/");
+    let mut map = HashMap::new();
+    map.insert("username", username);
+    map.insert("password", password);
+
+    let client = reqwest::Client::new();
+    let res = client.post(url).json(&map).send().await;
+    let final_res = match res {
+        Ok(r) => r,
+        Err(_) => {
+            return Err("Error: posting request");
+        }
+    };
+    let result = final_res.status();
+    Ok(result)
 }
 
 #[derive(Deserialize, Debug)]
@@ -61,16 +79,36 @@ pub struct Message {
     pub message: String,
 }
 
-pub struct UserCommand {
+pub struct CreateUserCommand {
     pub command: String,
-    pub username: u32,
+    pub status: StatusCode,
 }
+impl CreateUserCommand {
+    pub async fn build(args: Vec<&str>) -> Result<StatusCode, &'static str> {
+        if args.len() < 4 {
+            return Err("not enough arguments");
+        }
+        if args.len() > 4 {
+            return Err("too many arguments");
+        }
+        let create: String = args[0].to_string();
+        let username: String = args[1].to_string();
+        let password: String = args[2].to_string();
 
+        let res = user_post_helper(&username, &password).await?;
+
+        Ok(res)
+    }
+}
 #[derive(Deserialize, Debug)]
 pub struct User {
     pub user_id: u32,
     pub username: String,
     pub password: String,
+}
+pub struct UserCommand {
+    pub command: String,
+    pub username: u32,
 }
 
 impl UserCommand {
