@@ -1,10 +1,10 @@
 use std::fmt::{ self, format };
 use std::collections::HashMap;
 use std::future::Future;
-use reqwest::{ Client, Error, Response, StatusCode };
+use reqwest::{ redirect, Client, Error, Response, StatusCode };
 use serde::Deserialize;
 
-async fn message_post_helper(username: &str, message: &str) -> Result<Response, &'static str> {
+async fn message_post_helper(username: &str, message: &str) -> Result<StatusCode, &'static str> {
     let url: String = format!("http://localhost:8001/chats/{}/", username);
     let mut map = HashMap::new();
     map.insert("message", message);
@@ -17,7 +17,8 @@ async fn message_post_helper(username: &str, message: &str) -> Result<Response, 
             return Err("Error: posting request");
         }
     };
-    Ok(final_res)
+    let res = final_res.status();
+    Ok(res)
 }
 
 //TODO: Fix type issues
@@ -159,7 +160,7 @@ pub struct MessageCommand {
 }
 
 impl MessageCommand {
-    pub fn build(args: Vec<&str>) -> Result<MessageCommand, &'static str> {
+    pub async fn build(args: Vec<&str>) -> Result<String, &'static str> {
         if args.len() < 4 {
             return Err("not enough arguments");
         }
@@ -169,11 +170,13 @@ impl MessageCommand {
         let command: String = args[0].to_string();
         let user: String = args[1].to_string();
         let message: String = args[3].to_string();
+        let message_return: String = args[3].to_string();
 
         let mes = MessageCommand { command, user, message };
 
-        message_post_helper(&mes.user, &mes.message);
-        return Ok(mes);
+        let outward_mes = message_post_helper(&mes.user, &mes.message).await?;
+        println!("The Message status code: {:?}", outward_mes);
+        return Ok(message_return);
     }
 
     pub fn send() {}
