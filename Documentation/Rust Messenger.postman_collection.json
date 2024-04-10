@@ -42,7 +42,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"username\": \"lmartin9\",\n    \"password\": \"password\"\n}",
+					"raw": "{\n    \"username\": \"lmartin13\",\n    \"password\": \"password1\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -67,6 +67,16 @@
 		{
 			"name": "Create Chat",
 			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
 				"method": "POST",
 				"header": [],
 				"body": {
@@ -100,7 +110,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"username\": \"lmartin10\",\n    \"password\": \"password\"\n}",
+					"raw": "{\n    \"username\": \"lmartin13\",\n    \"password\": \"password1\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -125,6 +135,16 @@
 		{
 			"name": "Create Message",
 			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpZCI6IjUiLCJleHAiOjE3NDQyMjM0NTR9.KUvPy3VlTGoBlCkU_UZGnE_s7VgbbCgxVgZI6QcA7-lu_hsJJtBIz1npLWDAvVe_wT2UpnJfJnZU32q-DOOwSg",
+							"type": "string"
+						}
+					]
+				},
 				"method": "POST",
 				"header": [],
 				"body": {
@@ -155,6 +175,16 @@
 		{
 			"name": "Get Chats",
 			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpZCI6IjUiLCJleHAiOjE3NDQyMjM0NTR9.KUvPy3VlTGoBlCkU_UZGnE_s7VgbbCgxVgZI6QcA7-lu_hsJJtBIz1npLWDAvVe_wT2UpnJfJnZU32q-DOOwSg",
+							"type": "string"
+						}
+					]
+				},
 				"method": "GET",
 				"header": [],
 				"url": {
@@ -174,6 +204,16 @@
 		{
 			"name": "Get Messages",
 			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpZCI6IjUiLCJleHAiOjE3NDQyMjM0NTR9.KUvPy3VlTGoBlCkU_UZGnE_s7VgbbCgxVgZI6QcA7-lu_hsJJtBIz1npLWDAvVe_wT2UpnJfJnZU32q-DOOwSg",
+							"type": "string"
+						}
+					]
+				},
 				"method": "GET",
 				"header": [],
 				"url": {
