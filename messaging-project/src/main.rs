@@ -11,10 +11,12 @@ use messaging_project::{
     MessageCommand,
     UserCommand,
     LoginCommand,
+    ret_chats,
 };
 
 fn main() {
     let mut buf = String::new();
+    let mut tok: String = String::new();
 
     loop {
         buf = String::new();
@@ -31,10 +33,13 @@ fn main() {
         let rt = runtime::Runtime::new().unwrap();
         //let check = &the_args[0];
         if &args[0] == &"send" {
-            let config = rt.block_on(MessageCommand::build(args)).unwrap();
+            let config = rt.block_on(MessageCommand::build(args, &tok)).unwrap();
             println!("Successful constructed, {:?}", config);
-        } else if &args[0] == &"chat" {
-            let config = rt.block_on(ChatCommand::build(args)).unwrap();
+        } else if &args[0] == &"messages" {
+            let config = rt.block_on(ChatCommand::build(args, &tok)).unwrap();
+            println!("Successful constructed, {:?}", config);
+        } else if &args[0] == &"chats" {
+            let config = rt.block_on(ret_chats(args, &tok)).unwrap();
             println!("Successful constructed, {:?}", config);
         } else if &args[0] == &"user" {
             let config = rt.block_on(UserCommand::build(args)).unwrap();
@@ -52,16 +57,18 @@ fn main() {
             });
             println!("Successful constructed, {:?}", config);
         } else if &args[0] == &"username" {
-            // let config = LoginCommand::build(args).unwrap_or_else(|err| {
-            //     println!("Problem parsing arguments: {err}");
-            //     process::exit(1);
-            // });
             let config = rt.block_on(LoginCommand::build(args)).unwrap();
-            println!("Successful constructed, {:?}", config);
+            println!("{:?}", &config);
+            tok = config;
+            println!("Successfully signed in!");
         } else if &args[0] == &"createuser" {
             let config = rt.block_on(CreateUserCommand::build(args)).unwrap();
-            println!("Successful constructed, {:?}", config);
+            println!("Create User Status, {:?}", config);
+            println!("202 : successful user creation");
         } else if &args[0] == &":q" {
+            break;
+        } else {
+            println!("Perform a -h or -help command to view valid inputs.");
             break;
         }
     }

@@ -4,13 +4,23 @@ use std::future::Future;
 use reqwest::{ redirect, Client, Error, Response, StatusCode };
 use serde::Deserialize;
 
-async fn message_post_helper(username: &str, message: &str) -> Result<StatusCode, &'static str> {
+async fn message_post_helper(
+    username: &str,
+    message: &str,
+    token: &str
+) -> Result<StatusCode, &'static str> {
     let url: String = format!("http://localhost:8001/chats/{}/", username);
     let mut map = HashMap::new();
     map.insert("message", message);
 
+    let bearer = "Bearer ".to_owned();
+
     let client = reqwest::Client::new();
-    let res = client.post(url).json(&map).send().await;
+    let res = client
+        .post(url)
+        .json(&map)
+        .header("Authentication", bearer + token)
+        .send().await;
     let final_res = match res {
         Ok(r) => r,
         Err(_) => {
@@ -22,12 +32,56 @@ async fn message_post_helper(username: &str, message: &str) -> Result<StatusCode
 }
 
 //TODO: Fix type issues
-async fn message_get_helper(username: &str) -> Result<Message, Error> {
+async fn message_get_helper(username: &str, token: &str) -> Result<String, Error> {
     let url: String = format!("http://localhost:8001/chats/{}/messages", username);
-    let get_res = reqwest::get(&url).await?;
+    let client = reqwest::Client::new();
+    let bearer = "Bearer ".to_owned();
+    let get_res = client
+        .get(&url)
+        .header("Authorization", bearer + token)
+        .send().await?;
 
-    let final_result = get_res.json::<Message>().await?;
+    let final_result = get_res.text().await?;
     Ok(final_result)
+}
+
+async fn get_chats_helper(token: &str) -> Result<Response, &'static str> {
+    let url: String = format!("http://localhost:8001/chats/");
+    let mut input = "Bearer ".to_owned();
+
+    let client = reqwest::Client::new();
+    let res = client
+        .get(url)
+        .header("Authorization", input + token)
+        .send().await;
+    let final_res = match res {
+        Ok(r) => r,
+        Err(_) => {
+            return Err("Error: posting request");
+        }
+    };
+    Ok(final_res)
+}
+
+// trying to create a function instead of a class to return chats
+pub async fn ret_chats(args: Vec<&str>, token: &str) -> Result<String, &'static str> {
+    if args.len() < 1 {
+        return Err("not enough arguments");
+    }
+    if args.len() > 1 {
+        return Err("too many arguments");
+    }
+
+    let messages = get_chats_helper(&token).await?;
+
+    let code = messages.text().await;
+    let text_ret = match code {
+        Ok(r) => r,
+        Err(_) => {
+            return Err("Error: fetching request unsuccessful");
+        }
+    };
+    return Ok(text_ret);
 }
 
 async fn user_post_helper(username: &str, password: &str) -> Result<StatusCode, &'static str> {
@@ -160,21 +214,22 @@ pub struct MessageCommand {
 }
 
 impl MessageCommand {
-    pub async fn build(args: Vec<&str>) -> Result<String, &'static str> {
-        if args.len() < 4 {
-            return Err("not enough arguments");
-        }
-        if args.len() > 4 {
-            return Err("too many arguments");
-        }
+    pub async fn build(args: Vec<&str>, token: &str) -> Result<String, &'static str> {
+        // if args.len() <  {
+        //     return Err("not enough arguments");
+        // }
+        // if args.len() > 4 {
+        //     return Err("too many arguments");
+        // }
         let command: String = args[0].to_string();
+        // let user: u32 = args[1].to_string().parse::<u32>().unwrap();
         let user: String = args[1].to_string();
-        let message: String = args[3].to_string();
-        let message_return: String = args[3].to_string();
+        let message: String = args[2].to_string();
+        let message_return: String = args[2].to_string();
 
         let mes = MessageCommand { command, user, message };
 
-        let outward_mes = message_post_helper(&mes.user, &mes.message).await?;
+        let outward_mes = message_post_helper(&mes.user, &mes.message, token).await?;
         println!("The Message status code: {:?}", outward_mes);
         return Ok(message_return);
     }
@@ -191,38 +246,42 @@ impl fmt::Debug for MessageCommand {
 pub struct ChatCommand {
     pub command: String,
     pub user: String,
-    pub depth: u32,
 }
 
 //TODO: fix this issue
 impl ChatCommand {
-    pub async fn build(args: Vec<&str>) -> Result<ChatCommand, &'static str> {
-        if args.len() < 3 {
+    pub async fn build(args: Vec<&str>, token: &str) -> Result<String, &'static str> {
+        if args.len() < 2 {
             return Err("not enough arguments");
         }
-        if args.len() > 3 {
+        if args.len() > 2 {
             return Err("too many arguments");
         }
         let command: String = args[0].to_string();
         let user: String = args[1].to_string();
-        let depth: u32 = args[2].to_string().parse::<u32>().unwrap();
 
-        let chat = ChatCommand { command, user, depth };
-        let mes = message_get_helper(&chat.user).await;
-        let result: Result<Message, &str> = match mes {
+        let chat = ChatCommand { command, user };
+        let mes = message_get_helper(&chat.user, token).await;
+        let result: Result<String, &str> = match mes {
             Ok(r) => Ok(r),
             Err(_) => {
                 return Err("Error: fetching request");
             }
         };
-        println!("{:?}", result);
-        return Ok(chat);
+        let final_result = match result {
+            Ok(r) => r,
+            Err(_) => {
+                return Err("Error: Error in fetching the text of messages");
+            }
+        };
+        let ret_result = final_result.split("\"").collect();
+        return Ok(ret_result);
     }
 }
 
 impl fmt::Debug for ChatCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {} {}", self.command, self.user, self.depth)
+        write!(f, "{} {}", self.command, self.user)
     }
 }
 
