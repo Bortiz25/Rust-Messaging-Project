@@ -27,30 +27,20 @@ fn main() {
         if new_args.len() > 1 {
             args.push(new_args[1]);
         }
-        dbg!(&args);
-        //Ok(());
 
         let rt = runtime::Runtime::new().unwrap();
         //let check = &the_args[0];
         if &args[0] == &"send" {
             let config = rt.block_on(MessageCommand::build(args, &tok)).unwrap();
-            println!("Successful constructed, {:?}", config);
+            println!("Message: {:?}", config);
         } else if &args[0] == &"messages" {
             let config = rt.block_on(ChatCommand::build(args, &tok)).unwrap();
-            println!("Successful constructed, {:?}", config);
+            println!("All messages: {:?}", config);
         } else if &args[0] == &"chats" {
             let config = rt.block_on(ret_chats(args, &tok)).unwrap();
-            println!("Successful constructed, {:?}", config);
-        } else if &args[0] == &"user" {
-            let config = rt.block_on(UserCommand::build(args)).unwrap();
-            println!("Successful constructed, {:?}", config);
-        } else if &args[0] == &"delete" {
-            let config = DeleteCommand::build(args).unwrap_or_else(|err| {
-                println!("Problem parsing arguments: {err}");
-                process::exit(1);
-            });
-            println!("Successful constructed, {:?}", config);
-        } else if &args[0] == &"list" {
+            println!("All Chats{:?}", config);
+        } 
+        else if &args[0] == &"list" {
             let config = ListCommand::build(args).unwrap_or_else(|err| {
                 println!("Problem parsing arguments: {err}");
                 process::exit(1);
@@ -67,6 +57,14 @@ fn main() {
             println!("202 : successful user creation");
         } else if &args[0] == &":q" {
             break;
+        } else if &args[0] == &"-h" || &args[0] == &"-help" {
+            println!("COMMANDS: ");
+            println!("createuser <username> <password> - creates a user/account");
+            println!("messages <username> - shows the messages connected to a user");
+            println!("send <username> <message>(one word only sorry) - sends message to indicated user only can send one word");
+            println!("chats - command will show chats associated with logged in user");
+            println!("username <username> password <password> - signs in user");
+            println!(":q - quits all processes");
         } else {
             println!("Perform a -h or -help command to view valid inputs.");
             break;

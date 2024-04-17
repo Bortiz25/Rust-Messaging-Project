@@ -9,9 +9,11 @@ async fn message_post_helper(
     message: &str,
     token: &str
 ) -> Result<StatusCode, &'static str> {
+    println!("{}", username);
     let url: String = format!("http://localhost:8001/chats/{}/", username);
     let mut map = HashMap::new();
     map.insert("message", message);
+    println!("{:?}", &map);
 
     let bearer = "Bearer ".to_owned();
 
@@ -19,10 +21,14 @@ async fn message_post_helper(
     let res = client
         .post(url)
         .json(&map)
-        .header("Authentication", bearer + token)
+        .header("Authorization", bearer + token)
+        .header("content-type", "application/json")
         .send().await;
     let final_res = match res {
-        Ok(r) => r,
+        Ok(r) => {
+            println!("{:?}", r);
+            r
+        }
         Err(_) => {
             return Err("Error: posting request");
         }
