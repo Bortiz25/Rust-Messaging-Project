@@ -26,7 +26,6 @@ async fn message_post_helper(
         .send().await;
     let final_res = match res {
         Ok(r) => {
-            println!("{:?}", r);
             r
         }
         Err(_) => {
@@ -128,7 +127,6 @@ async fn login_post_helper(username: &str, password: &str) -> Result<Response, &
             return Err("Error: posting request");
         }
     };
-    println!("{:?}", &final_res);
     Ok(final_res)
 }
 

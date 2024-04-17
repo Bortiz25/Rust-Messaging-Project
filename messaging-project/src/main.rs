@@ -48,7 +48,6 @@ fn main() {
             println!("Successful constructed, {:?}", config);
         } else if &args[0] == &"username" {
             let config = rt.block_on(LoginCommand::build(args)).unwrap();
-            println!("{:?}", &config);
             tok = config;
             println!("Successfully signed in!");
         } else if &args[0] == &"createuser" {
